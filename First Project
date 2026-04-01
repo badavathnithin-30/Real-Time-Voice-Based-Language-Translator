@@ -1,0 +1,89 @@
+import speech_recognition as sr
+from deep_translator import GoogleTranslator
+from gtts import gTTS
+import playsound
+import os
+import sys
+import time
+
+r = sr.Recognizer()
+mic = sr. Microphone()
+
+language mode = "en-IN"
+stop_flag = False
+
+def speak_text(text, lang_code):
+    """Convert text to speech and play it"""
+    try:
+        tts = gTTS(text=text, lang=lang_code)
+        filename = "temp_audio.mp3"
+        tts.save(filename)
+        playsound.playsound(filename)
+        os.remove(filename)
+    except Exception as e:
+        print(f"Speech error: {e}")
+def callback(recognizer, audio):
+    global stop_flag, language_mode
+
+    try:
+        text = recognizer.recognize_google(audio, language=language_mode)
+        text = text.strip()
+        cmd = text.lower()
+
+        #--- Control Commands ---
+        if cmd in ["switch to english", "స్విచ్ టు ఇంగ్లిష్"]:
+            language_mode = "en-IN"
+            print("Switched to English mode (will translate to telugu).\n")
+            speak_text("English mode activated","en")
+            return
+        
+        elif cmd in ["switch to telugu","స్విచ్ టు తెలుగు"]:
+            print("Switched to telugu mode (will translate to English).\n")
+            speak_text("Telugu mode activated","en")
+            return
+        
+        elif cmd == "stop":
+            print("Stop command detected, Exiting...")
+            speak_text("stopping program","en")
+            stop_flag = True
+            return
+        
+        # --- Translation logic ---
+        if language_mode == "en-IN":
+            translated_text = GoogleTranslator(source = 'en',target = 'te').translate(text)
+            print(f"You said (English): {text}")
+            print(f"Translated (Telugu): {translated_text}\n")
+            speak_text(translated_text,"te")
+
+        elif language_mode == "te-IN":
+            translated_text = GoogleTranslator(source='te',target='en').translate(text)
+            print(f"You said (Telugu):{text}")
+            print(f"Translated (English): {translated_text}\n")
+            speak_text(translated_text,"en")
+
+    except sr.UnknownValueError:
+        pass  # ignore unrecognized speech
+    except sr.RequestError:
+        print("Network error. Check your internet connection.")
+    except Exception as e:
+        print(f"Error {e}")
+
+# --- Setup microphone ---
+with mic as source:
+    print("Adjust for ambient noise, please wait...")
+    r.adjust_for_ambient_noise(source, duration=1)
+
+print("\nListening continuously...")
+print("say 'switch to English' or 'switch to telugu' to choose languages.")
+print("say 'stop' to end.\n")
+
+# --- Start background listening ---
+stop_listening = r.listen_in_background(mic, callback)
+
+# --- Keep running until sto command ---
+while not stop_flag:
+    time.sleep(0.1)
+
+    stop_listening( wait_for_stop=False)
+    print("Program ended.")
+    sys.exit()
